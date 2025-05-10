@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "291420508559",
+    "project_id": "project-b9266",
+    "storage_bucket": "project-b9266.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:291420508559:android:6f52178a4055f691e97bfa",
+        "android_client_info": {
+          "package_name": "com.beluce.inc.proyecto"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "291420508559-59sfduva9vvcnc0e2kjm4dh144l1ih85.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.beluce.inc.proyecto",
+            "certificate_hash": "47c1a9a400d4ba6b2604736c121c5f1dcde5f858"
+          }
+        },
+        {
+          "client_id": "291420508559-smhuebfosl40bnj2qpsusit9ilg9kl7c.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCH2txhoIGGOoYNrkmeDwN0sQFEhUuSECg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "291420508559-smhuebfosl40bnj2qpsusit9ilg9kl7c.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
