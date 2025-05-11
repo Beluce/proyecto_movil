@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -6,107 +5,202 @@ import 'package:google_sign_in/google_sign_in.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
-  
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final emailTxtController = TextEditingController();
+  final passwordTxtController = TextEditingController();
 
-  Future<void> login() async {
-    try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Inicio de sesión exitoso.')),
-      );
-    } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.message}')),
-      );
-    }
+  void showMsg(String msg, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
-  Future<void> register() async {
+  Future<void> handleLogin() async {
     try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: emailTxtController.text.trim(),
+        password: passwordTxtController.text.trim(),
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Correo electrónico registrado correctamente.')),
-      );
-    } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.message}')),
-      );
-    }
-  }
 
-  Future<void> signInWithGoogle() async {
-      try {
-        final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-        if (googleUser == null) return;
-
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-
-        final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-
-        await FirebaseAuth.instance.signInWithCredential(credential);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Inicio de sesión exitoso.')),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al iniciar sesión con Google: $e')),
-        );
+      final user = userCredential.user;
+      if (user != null && !user.emailVerified) {
+        await FirebaseAuth.instance.signOut();
+        showMsg('Por favor, verifica tu correo antes de iniciar sesión.', Colors.red);
+        return;
       }
+
+      showMsg('Inicio de sesión exitoso.', Colors.green);
+    } on FirebaseAuthException catch (e) {
+      final message = getMailAuthErrorMessage(e.code);
+      showMsg(message, Colors.red);
+    }
+  }
+
+  String getMailAuthErrorMessage(String code) {
+    switch (code) {
+      case 'user-not-found':
+        return 'No se encontró una cuenta asociada con ese correo.';
+      case 'wrong-password':
+        return 'La contraseña es incorrecta.';
+      case 'invalid-email':
+        return 'El correo electrónico no es válido.';
+      case 'user-disabled':
+        return 'Esta cuenta ha sido deshabilitada.';
+      case 'too-many-requests':
+        return 'Demasiados intentos. Vuelve a intentarlo más tarde.';
+      case 'email-already-in-use':
+        return 'Este correo ya está registrado!';
+      case 'weak-password':
+        return 'La contraseña no cumple con los requerimentos establecidos.';
+      case 'operation-not-allowed':
+        return 'Esta operación no está permitida.';
+      case 'invalid-credential':
+        return 'Credenciales incorrectas. Si creaste tu cuenta con Google, usa esa opción.';
+      default:
+        return 'No se ha podido iniciar sesión, inténtalo nuevamente.';
+    }
+  }
+
+  Future<void> handleRegister() async {
+    try {
+      final UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: emailTxtController.text.trim(),
+        password: passwordTxtController.text.trim(),
+      );
+
+      final user = userCredential.user;
+
+      if (user != null && !user.emailVerified) {
+        await user.sendEmailVerification();
+      }
+
+      showMsg('Registro exitoso. Revisa tu correo para verificar la cuenta.', Colors.green);
+    } on FirebaseAuthException catch (e) {
+      final message = getMailAuthErrorMessage(e.code);
+      showMsg(message, Colors.red);
+    }
+  }
+
+  Future<void> handleGoogleLogin() async {
+    try {
+      final GoogleSignInAccount? user = await GoogleSignIn().signIn();
+      if (user == null) {
+        showMsg('Inicio de sesión cancelado por el usuario.', Colors.red);
+        return;
+      }
+
+      final auth = await user.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: auth.accessToken,
+        idToken: auth.idToken,
+      );
+
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      showMsg('Inicio de sesión con Google exitoso.', Colors.green);
+    } catch (e) {
+      showMsg('Error con Google. Verifica tu conexión y configuración del proyecto.', Colors.red);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Correo electrónico'),
+      backgroundColor: Colors.grey.shade100,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Card(
+            elevation: 12,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Iniciar sesión',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 30),
+                  TextField(
+                    controller: emailTxtController,
+                    decoration: const InputDecoration(
+                      labelText: 'Correo electrónico',
+                      prefixIcon: Icon(Icons.email),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: passwordTxtController,
+                    decoration: const InputDecoration(
+                      labelText: 'Contraseña',
+                      prefixIcon: Icon(Icons.lock),
+                    ),
+                    obscureText: true,
+                  ),
+                  const SizedBox(height: 30),
+                  AuthButton(label: 'Iniciar sesión', onPressed: handleLogin),
+                  const SizedBox(height: 10),
+                  AuthButton(label: 'Registrarse', onPressed: handleRegister),
+                  const Divider(height: 30),
+                  AuthButton(
+                    label: 'Iniciar con Google',
+                    icon: Icons.g_mobiledata,
+                    onPressed: handleGoogleLogin,
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Contraseña'),
-              obscureText: true,
-            ),
-            const SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: login,
-              child: const Text('Iniciar sesión'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: register,
-              child: const Text('Registrarse'),
-            ),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.login),
-              label: const Text('Iniciar con Google'),
-              onPressed: signInWithGoogle,
-            ),
-          ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class AuthButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onPressed;
+  final IconData? icon;
+
+  const AuthButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: icon == null
+          ? ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        child: Text(label),
+      )
+          : ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon),
+        label: Text(label),
+        style: ElevatedButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
     );
