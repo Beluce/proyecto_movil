@@ -4,9 +4,14 @@ import 'package:proyecto/pantallas/login_screen.dart';
 import 'home_screen.dart';
 import 'login_register_screen.dart';
 
-class AuthScreen extends StatelessWidget {
+class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
+  @override
+  State<AuthScreen> createState() => _AuthScreenState();
+}
+
+class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     bool emailUser;
@@ -14,17 +19,29 @@ class AuthScreen extends StatelessWidget {
       body: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
-          final user = FirebaseAuth.instance.currentUser?.providerData;
-
-          if (user != null) {
-            for (final info in user!) {
-              if (info.providerId != 'password') {
-                emailUser = true;
-              }
-            }
+          if (snapshot.hasData &&
+              ((snapshot.data?.emailVerified == false) &&
+                  (snapshot.data?.providerData.any(
+                        (p) => p.providerId == 'facebook.com',
+                  ) ==
+                      false) &&
+                  (snapshot.data?.providerData.any(
+                        (p) => p.providerId == 'google.com',
+                  ) ==
+                      false))) {
+            FirebaseAuth.instance.signOut();
+            return LoginRegisterScreen();
           }
-
-          if (snapshot.hasData && ((FirebaseAuth.instance.currentUser?.emailVerified == true) /* || (FirebaseAuth.instance.currentUser?.) */ )) {
+          if (snapshot.hasData &&
+              ((snapshot.data?.emailVerified == true) ||
+                  (snapshot.data?.providerData.any(
+                        (p) => p.providerId == 'facebook.com',
+                      ) ==
+                      true) ||
+                  (snapshot.data?.providerData.any(
+                        (p) => p.providerId == 'google.com',
+                      ) ==
+                      true))) {
             //user logged in:
             return HomeScreen();
           }

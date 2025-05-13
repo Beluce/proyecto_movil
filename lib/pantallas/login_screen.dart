@@ -7,6 +7,7 @@ import 'package:proyecto/componentes/textfield.dart';
 
 import '../componentes/interfaz_msg.dart';
 import '../componentes/contenedor_cuadrado.dart';
+import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final Function()? onTap;
@@ -28,9 +29,11 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void exitCircle(){
+  void exitCircle() {
     ScaffoldMessenger.of(context).clearSnackBars();
-    Navigator.pop(context);
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
   }
 
   void showMsg(String msg, Color color) {
@@ -46,7 +49,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> handleLogin() async {
-
     if (emailController.text.isEmpty || passwordController.text.isEmpty) {
       showMsg('Por favor ingresa tu correo y contraseña.', Colors.red);
       return;
@@ -59,17 +61,29 @@ class _LoginScreenState extends State<LoginScreen> {
             password: passwordController.text.trim(),
           );
 
-      if (userCredential.user != null && userCredential.user?.emailVerified == false) {
+      if (userCredential.user != null &&
+          userCredential.user?.emailVerified == false) {
         //verificacion email
         FirebaseAuth.instance.signOut();
         exitCircle();
         showMsg('Verifica tu correo antes de iniciar sesion', Colors.orange);
         return;
-      } else{
+      } else {
         exitCircle();
         showMsg('Inicio de sesión exitoso.', Colors.green);
-      }
 
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => HomeScreen(),
+          ),
+        );
+
+
+
+
+      }
     } on FirebaseAuthException catch (e) {
       exitCircle();
       showMsg(getMailAuthErrorMessage(e.code), Colors.red);
@@ -102,9 +116,12 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> handleGoogleLogin() async {
+    showLoading();
+
     try {
       final GoogleSignInAccount? user = await GoogleSignIn().signIn();
       if (user == null) {
+        exitCircle();
         showMsg('Inicio de sesión cancelado por el usuario.', Colors.red);
         return;
       }
@@ -118,16 +135,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
       await FirebaseAuth.instance.signInWithCredential(credential);
 
+      exitCircle();
       showMsg('Inicio de sesión con Google exitoso.', Colors.green);
     } catch (e) {
+      exitCircle();
       showMsg(
-        'Error con Google. Verifica tu conexión y configuración del proyecto.',
+        'Error al iniciar sesión con Google. Vuelve a intentarlo más tarde.',
         Colors.red,
       );
     }
   }
 
   Future<void> handleFacebookLogin() async {
+    showLoading();
+
     try {
       final LoginResult result =
           await FacebookAuth.instance
@@ -139,22 +160,28 @@ class _LoginScreenState extends State<LoginScreen> {
         );
         await FirebaseAuth.instance.signInWithCredential(credential);
 
+        exitCircle();
         showMsg('Inicio de sesión con Facebook exitoso.', Colors.green);
       } else if (result.status == LoginStatus.cancelled) {
+        exitCircle();
         showMsg('Inicio de sesión con Facebook cancelado.', Colors.orange);
       } else {
+        exitCircle();
         showMsg(
           'Error al iniciar sesión con Facebook: ${result.message}',
           Colors.red,
         );
       }
     } catch (e) {
+      exitCircle();
       showMsg(
         'Ocurrió un error inesperado al iniciar sesión con Facebook.',
         Colors.red,
       );
       print(e);
     }
+
+    exitCircle();
   }
 
   @override
