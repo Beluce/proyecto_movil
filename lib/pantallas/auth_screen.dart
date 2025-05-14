@@ -14,41 +14,35 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
-    bool emailUser;
     return Scaffold(
       body: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
-          if (snapshot.hasData &&
-              ((snapshot.data?.emailVerified == false) &&
-                  (snapshot.data?.providerData.any(
-                        (p) => p.providerId == 'facebook.com',
-                  ) ==
-                      false) &&
-                  (snapshot.data?.providerData.any(
-                        (p) => p.providerId == 'google.com',
-                  ) ==
-                      false))) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final user = snapshot.data;
+
+          if (user == null) {
+            return LoginRegisterScreen();
+          }
+
+          final isEmailVerified = user.emailVerified;
+          final hasFacebook = user.providerData.any((p) =>
+          p.providerId == 'facebook.com');
+          final hasGoogle = user.providerData.any((p) =>
+          p.providerId == 'google.com');
+
+          // Si el usuario se registró por email, debe verificar su email.
+          if (user.providerData.any((p) => p.providerId == 'password') &&
+              !isEmailVerified) {
             FirebaseAuth.instance.signOut();
             return LoginRegisterScreen();
           }
-          if (snapshot.hasData &&
-              ((snapshot.data?.emailVerified == true) ||
-                  (snapshot.data?.providerData.any(
-                        (p) => p.providerId == 'facebook.com',
-                      ) ==
-                      true) ||
-                  (snapshot.data?.providerData.any(
-                        (p) => p.providerId == 'google.com',
-                      ) ==
-                      true))) {
-            //user logged in:
-            return HomeScreen();
-          }
-          //user not logged in:
-          else {
-            return LoginRegisterScreen();
-          }
+
+          // Si llegó aquí, está logueado correctamente:
+          return HomeScreen();
         },
       ),
     );

@@ -71,18 +71,6 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         exitCircle();
         showMsg('Inicio de sesión exitoso.', Colors.green);
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder:
-                (context) => HomeScreen(),
-          ),
-        );
-
-
-
-
       }
     } on FirebaseAuthException catch (e) {
       exitCircle();
