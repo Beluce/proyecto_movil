@@ -12,37 +12,62 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
+
+  void exitCircle() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+  }
+
+  void logout() async {
+    await FirebaseAuth.instance.signOut();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final user = snapshot.data;
-
-          if (user == null) {
+          if (snapshot.hasData &&
+              ((snapshot.data?.emailVerified == false) &&
+                  (snapshot.data?.providerData.any(
+                        (p) => p.providerId == 'facebook.com',
+                      ) ==
+                      false) &&
+                  (snapshot.data?.providerData.any(
+                        (p) => p.providerId == 'google.com',
+                      ) ==
+                      false))) {
+            // usuario sin correo verificado usando contrasenha
+            print(
+              "usuario en authscreen sin Verificacion email: {${snapshot.data?.email}}",
+            );
             return LoginRegisterScreen();
           }
+          if (snapshot.hasData &&
+              ((snapshot.data?.emailVerified == true) ||
+                  (snapshot.data?.providerData.any(
+                        (p) => p.providerId == 'facebook.com',
+                      ) ==
+                      true) ||
+                  (snapshot.data?.providerData.any(
+                        (p) => p.providerId == 'google.com',
+                      ) ==
+                      true))) {
+            //user logged in:
+            print(
+              "usuario con correo verificado: en authscreen {${snapshot.data?.email}}",
+            );
+            snapshot.data?.reload();
+            exitCircle();
+            return HomeScreen();
 
-          final isEmailVerified = user.emailVerified;
-          final hasFacebook = user.providerData.any((p) =>
-          p.providerId == 'facebook.com');
-          final hasGoogle = user.providerData.any((p) =>
-          p.providerId == 'google.com');
-
-          // Si el usuario se registró por email, debe verificar su email.
-          if (user.providerData.any((p) => p.providerId == 'password') &&
-              !isEmailVerified) {
-            FirebaseAuth.instance.signOut();
+          }
+          //user not logged in:
+          else {
             return LoginRegisterScreen();
           }
-
-          // Si llegó aquí, está logueado correctamente:
-          return HomeScreen();
         },
       ),
     );

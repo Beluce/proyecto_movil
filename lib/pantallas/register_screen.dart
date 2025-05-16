@@ -9,6 +9,7 @@ import 'package:proyecto/pantallas/login_screen.dart';
 
 import '../componentes/interfaz_msg.dart';
 import '../componentes/contenedor_cuadrado.dart';
+import '../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   final Function()? onTap;
@@ -31,7 +32,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  void exitCircle() {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+  }
+
   void showMsg(String msg, Color color) {
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
@@ -40,6 +49,108 @@ class _RegisterScreenState extends State<RegisterScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
+  }
+
+  //fb
+  facebookLogin() async {
+    showLoading();
+    try {
+      final fb = FacebookAuth.instance;
+
+      final res = await fb.login(permissions: ['email', 'public_profile']);
+      switch (res.status) {
+        case LoginStatus.success:
+          print('Success');
+
+          final AccessToken accessToken = res.accessToken!;
+
+          final userData = await FacebookAuth.instance.getUserData();
+
+          final OAuthCredential credential = FacebookAuthProvider.credential(
+            accessToken.tokenString,
+          );
+
+          final result = await FirebaseAuth.instance.signInWithCredential(
+            credential,
+          );
+
+          final profilePicture = userData['picture']['data']['url'];
+          await result.user?.updatePhotoURL(profilePicture);
+
+          await FirebaseAuth.instance.currentUser?.reload();
+
+          print("foto de perfil desde fb $profilePicture");
+          print("foto de perfil desde firebase ${result.user?.photoURL}");
+
+          //user credential to sign in with firebase
+
+          print('${result.user?.email} is logged in with Facebook');
+
+          showMsg('Iniciaste sesión con Facebook exitosamente.', Colors.green);
+
+          break;
+
+        case LoginStatus.cancelled:
+          print('Cancelled');
+          exitCircle();
+          showMsg('Inicio de sesión con Facebook cancelado.', Colors.orange);
+          break;
+        case LoginStatus.failed:
+          print('Failed');
+          exitCircle();
+          showMsg(
+            'Error al iniciar sesión con Facebook, inténtalo de nuevo más tarde.',
+            Colors.red,
+          );
+          break;
+        case LoginStatus.operationInProgress:
+          exitCircle();
+          break;
+      }
+    } catch (e) {
+      print(e);
+      exitCircle();
+      showMsg('Ocurrió un error al iniciar sesión con Facebook.', Colors.red);
+    }
+  }
+
+  //google
+  googleLogin() async {
+    showLoading();
+
+    try {
+      // sign in process
+
+      final GoogleSignInAccount? gUser = await GoogleSignIn().signIn();
+
+      if (gUser == null) {
+        exitCircle();
+        showMsg('Inicio de sesión cancelado.', Colors.orange);
+        return;
+      }
+
+      //auth details
+
+      final GoogleSignInAuthentication gAuth = await gUser.authentication;
+
+      //create a new credential
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: gAuth.accessToken,
+        idToken: gAuth.idToken,
+      );
+
+      //SIGN IN
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      //no se por que? pero se ocupan dos exits para popear el circulo...
+    } catch (e) {
+      exitCircle();
+      showMsg('Error al iniciar sesión con Google.', Colors.red);
+      return;
+    }
+    exitCircle();
+    showMsg('Inicio de sesión con Google exitoso.', Colors.green);
   }
 
   String getMailAuthErrorMessage(String code) {
@@ -65,63 +176,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  Future<void> handleGoogleLogin() async {
-    try {
-      final GoogleSignInAccount? user = await GoogleSignIn().signIn();
-      if (user == null) {
-        showMsg('Inicio de sesión cancelado por el usuario.', Colors.red);
-        return;
-      }
-
-      final auth = await user.authentication;
-
-      final credential = GoogleAuthProvider.credential(
-        accessToken: auth.accessToken,
-        idToken: auth.idToken,
-      );
-
-      await FirebaseAuth.instance.signInWithCredential(credential);
-
-      showMsg('Inicio de sesión con Google exitoso.', Colors.green);
-    } catch (e) {
-      showMsg(
-        'Error con Google. Verifica tu conexión y configuración del proyecto.',
-        Colors.red,
-      );
-    }
-  }
-
-  Future<void> handleFacebookLogin() async {
-    try {
-      final LoginResult result =
-          await FacebookAuth.instance
-              .login(); // email y perfil publico de facebook
-
-      if (result.status == LoginStatus.success) {
-        final OAuthCredential credential = FacebookAuthProvider.credential(
-          result.accessToken!.tokenString,
-        );
-        await FirebaseAuth.instance.signInWithCredential(credential);
-
-        showMsg('Inicio de sesión con Facebook exitoso.', Colors.green);
-      } else if (result.status == LoginStatus.cancelled) {
-        showMsg('Inicio de sesión con Facebook cancelado.', Colors.orange);
-      } else {
-        showMsg(
-          'Error al iniciar sesión con Facebook: ${result.message}',
-          Colors.red,
-        );
-      }
-    } catch (e) {
-      showMsg(
-        'Ocurrió un error inesperado al iniciar sesión con Facebook.',
-        Colors.red,
-      );
-      print(e);
-    }
-  }
-
   Future<void> handleRegister() async {
+    final FocusNode emptyFocusNode = FocusNode(); //desenfocar campos de texto al clickear en registrarse:)
     try {
       //confirmar contrasenha
 
@@ -130,34 +186,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
-      final UserCredential userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: emailController.text.trim(),
-            password: passwordController.text.trim(),
-          );
+      showLoading();
 
-      final user = userCredential.user;
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      User? user = FirebaseAuth.instance.currentUser;
 
       if (user != null && !user.emailVerified) {
         await user.sendEmailVerification();
       }
+
+      //await FirebaseAuth.instance.signOut(); // si brickea, quitar pls
+
+      exitCircle();
 
       showMsg(
         'Registro exitoso. Para acceder a tu cuenta, revisa tu correo electronico y verifica tu cuenta.',
         Colors.orange,
       );
 
-      Navigator.pushReplacement(
+      emailController.clear();
+      passwordController.clear();
+      confirmPasswordController.clear();
+      FocusScope.of(context).requestFocus(emptyFocusNode); //para limpiar el enfoque en los input text field
+
+      //Navigator.pushNamed(context, '/login_screen');
+
+      Navigator.push(
         context,
         MaterialPageRoute(
           builder:
-              (context) => const LoginRegisterScreen(showLoginScreen: true),
+              (context) => LoginScreen(onTap: widget.onTap),
         ),
       );
+
+
+
     } on FirebaseAuthException catch (e) {
       final message = getMailAuthErrorMessage(e.code);
+      exitCircle();
       showMsg(message, Colors.red);
     }
+
   }
 
   @override
@@ -173,13 +246,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 50),
 
                 // logo
-                const Icon(Icons.lock, size: 100),
-                const SizedBox(height: 50),
+                Image.asset(
+                  'assets/img/logo.png',
+                  height: 180,
+                ),
+                const SizedBox(height: 15),
 
                 // bienvenido de vuelta
                 Text(
-                  'Regístrate ahora!',
-                  style: TextStyle(color: Colors.grey[700], fontSize: 16),
+                  'Regístrate ahora:',
+                  style: TextStyle(
+                    color: Colors.grey[800],
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
 
                 const SizedBox(height: 25),
@@ -211,10 +291,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 const SizedBox(height: 25),
 
-                //login button
-                Button1(onTap: handleRegister, text: 'Registrarse'),
+                //register button
+                Button1(onTap: handleRegister, text: 'Registrarse', fontSize: 16),
 
-                const SizedBox(height: 50),
+                const SizedBox(height: 35),
 
                 //or continue with
                 Padding(
@@ -240,7 +320,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 50),
+                const SizedBox(height: 35),
 
                 //google + facebook btns
                 Row(
@@ -248,21 +328,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   children: [
                     //boton google
                     SquareTile(
-                      imagePath: 'lib/img/google.png',
-                      onTap: handleGoogleLogin,
+                      onTap: () => googleLogin(),
+                      imagePath: 'assets/img/google.png',
                     ),
 
                     const SizedBox(width: 10),
 
                     //boton facebook
                     SquareTile(
-                      imagePath: 'lib/img/facebook.webp',
-                      onTap: handleFacebookLogin,
+                      imagePath: 'assets/img/facebook.webp',
+                      onTap: () => facebookLogin(),
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 50),
+                const SizedBox(height: 35),
 
                 //not a member? register now
                 Row(
@@ -277,7 +357,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                     GestureDetector(
                       onTap: () {
-                        Navigator.pushNamed(context, '/register_screen');
+                        Navigator.pushNamed(context, '/login_screen');
                       },
                       child: GestureDetector(
                         onTap: widget.onTap,

@@ -4,6 +4,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:proyecto/componentes/button1.dart';
 import 'package:proyecto/componentes/textfield.dart';
+import 'package:proyecto/pantallas/password_reset_screen.dart';
+import 'package:proyecto/services/auth_service.dart';
 
 import '../componentes/interfaz_msg.dart';
 import '../componentes/contenedor_cuadrado.dart';
@@ -48,7 +50,112 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  //fb
+  facebookLogin() async {
+    showLoading();
+    try {
+      final fb = FacebookAuth.instance;
+
+      final res = await fb.login();
+      switch (res.status) {
+        case LoginStatus.success:
+          print('Success');
+
+          final accessToken = res.accessToken;
+
+          final userData = await FacebookAuth.instance.getUserData();
+
+          final profilePicture = userData['picture']['data']['url'];
+
+          final OAuthCredential credential = FacebookAuthProvider.credential(
+            accessToken!.tokenString,
+          );
+
+          final result = await FirebaseAuth.instance.signInWithCredential(
+            credential,
+          );
+
+          await result.user?.updatePhotoURL(profilePicture);
+
+          await FirebaseAuth.instance.currentUser?.reload();
+
+          print("foto de perfil desde fb $profilePicture");
+          print("foto de perfil desde firebase ${result.user?.photoURL}");
+
+          //user credential to sign in with firebase
+
+          print('${result.user?.email} is logged in with Facebook');
+
+          showMsg('Iniciaste sesión con Facebook exitosamente.', Colors.green);
+
+          break;
+
+        case LoginStatus.cancelled:
+          print('Cancelled');
+          exitCircle();
+          showMsg('Inicio de sesión con Facebook cancelado.', Colors.orange);
+          break;
+        case LoginStatus.failed:
+          print('Failed');
+          exitCircle();
+          showMsg(
+            'Error al iniciar sesión con Facebook, inténtalo de nuevo más tarde.',
+            Colors.red,
+          );
+          break;
+        case LoginStatus.operationInProgress:
+          exitCircle();
+          break;
+      }
+    } catch (e) {
+      print(e);
+      exitCircle();
+      showMsg('Ocurrió un error al iniciar sesión con Facebook.', Colors.red);
+    }
+  }
+
+  //google
+  googleLogin() async {
+    showLoading();
+
+    try {
+      // sign in process
+
+      final GoogleSignInAccount? gUser = await GoogleSignIn().signIn();
+
+      if (gUser == null) {
+        exitCircle();
+        showMsg('Inicio de sesión cancelado.', Colors.orange);
+        return;
+      }
+
+      //auth details
+
+      final GoogleSignInAuthentication gAuth = await gUser.authentication;
+
+      //create a new credential
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: gAuth.accessToken,
+        idToken: gAuth.idToken,
+      );
+
+      //SIGN IN
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      //no se por que? pero se ocupan dos exits para popear el circulo...
+    } catch (e) {
+      exitCircle();
+      showMsg('Error al iniciar sesión con Google.', Colors.red);
+      return;
+    }
+    exitCircle();
+    showMsg('Inicio de sesión con Google exitoso.', Colors.green);
+  }
+
   Future<void> handleLogin() async {
+    FirebaseAuth.instance.signOut();
+
     if (emailController.text.isEmpty || passwordController.text.isEmpty) {
       showMsg('Por favor ingresa tu correo y contraseña.', Colors.red);
       return;
@@ -64,11 +171,13 @@ class _LoginScreenState extends State<LoginScreen> {
       if (userCredential.user != null &&
           userCredential.user?.emailVerified == false) {
         //verificacion email
-        FirebaseAuth.instance.signOut();
+        print("usuario sin Verificacion email");
+        await FirebaseAuth.instance.signOut();
         exitCircle();
         showMsg('Verifica tu correo antes de iniciar sesion', Colors.orange);
         return;
       } else {
+        exitCircle();
         exitCircle();
         showMsg('Inicio de sesión exitoso.', Colors.green);
       }
@@ -103,75 +212,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> handleGoogleLogin() async {
-    showLoading();
-
-    try {
-      final GoogleSignInAccount? user = await GoogleSignIn().signIn();
-      if (user == null) {
-        exitCircle();
-        showMsg('Inicio de sesión cancelado por el usuario.', Colors.red);
-        return;
-      }
-
-      final auth = await user.authentication;
-
-      final credential = GoogleAuthProvider.credential(
-        accessToken: auth.accessToken,
-        idToken: auth.idToken,
-      );
-
-      await FirebaseAuth.instance.signInWithCredential(credential);
-
-      exitCircle();
-      showMsg('Inicio de sesión con Google exitoso.', Colors.green);
-    } catch (e) {
-      exitCircle();
-      showMsg(
-        'Error al iniciar sesión con Google. Vuelve a intentarlo más tarde.',
-        Colors.red,
-      );
-    }
-  }
-
-  Future<void> handleFacebookLogin() async {
-    showLoading();
-
-    try {
-      final LoginResult result =
-          await FacebookAuth.instance
-              .login(); // email y perfil publico de facebook
-
-      if (result.status == LoginStatus.success) {
-        final OAuthCredential credential = FacebookAuthProvider.credential(
-          result.accessToken!.tokenString,
-        );
-        await FirebaseAuth.instance.signInWithCredential(credential);
-
-        exitCircle();
-        showMsg('Inicio de sesión con Facebook exitoso.', Colors.green);
-      } else if (result.status == LoginStatus.cancelled) {
-        exitCircle();
-        showMsg('Inicio de sesión con Facebook cancelado.', Colors.orange);
-      } else {
-        exitCircle();
-        showMsg(
-          'Error al iniciar sesión con Facebook: ${result.message}',
-          Colors.red,
-        );
-      }
-    } catch (e) {
-      exitCircle();
-      showMsg(
-        'Ocurrió un error inesperado al iniciar sesión con Facebook.',
-        Colors.red,
-      );
-      print(e);
-    }
-
-    exitCircle();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -182,19 +222,26 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(height: 50),
+                const SizedBox(height: 35),
 
                 // logo
-                const Icon(Icons.lock, size: 100),
-                const SizedBox(height: 50),
+                Image.asset(
+                  'assets/img/logo.png',
+                  height: 180,
+                ),
+                const SizedBox(height: 35),
 
                 // bienvenido de vuelta
                 Text(
-                  'Bienvenido a Smart Vida!',
-                  style: TextStyle(color: Colors.grey[700], fontSize: 16),
+                  'Bienvenido a Smart Vida',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                      color: Colors.grey[700]
+                  ),
                 ),
 
-                const SizedBox(height: 25),
+                const SizedBox(height: 40),
 
                 //username textfield
                 TxtField(
@@ -214,24 +261,38 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 10),
 
-                //forgot password?
+
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Text(
-                        '¿Olvidaste tu contraseña?',
-                        style: TextStyle(color: Colors.lightBlue),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => PasswordResetScreen(onTap: () {  },),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          '¿Olvidaste tu contraseña?',
+                          style: const TextStyle(
+                            color: Colors.lightBlue,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
 
+
                 const SizedBox(height: 25),
 
                 //login button
-                Button1(onTap: handleLogin, text: 'Iniciar sesión'),
+                Button1(onTap: handleLogin, text: 'Iniciar sesión', fontSize: 16,),
 
                 const SizedBox(height: 50),
 
@@ -267,16 +328,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     //boton google
                     SquareTile(
-                      imagePath: 'lib/img/google.png',
-                      onTap: handleGoogleLogin,
+                      onTap: () => googleLogin(),
+                      imagePath: 'assets/img/google.png',
                     ),
 
                     const SizedBox(width: 10),
 
                     //boton facebook
                     SquareTile(
-                      imagePath: 'lib/img/facebook.webp',
-                      onTap: handleFacebookLogin,
+                      imagePath: 'assets/img/facebook.webp',
+                      onTap: () => facebookLogin(),
                     ),
                   ],
                 ),
