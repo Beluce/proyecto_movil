@@ -10,7 +10,7 @@ plugins {
 
 android {
     namespace = "com.beluce.inc.proyecto"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35
     // ndkVersion = flutter.ndkVersion
     ndkVersion = "27.0.12077973"
 
@@ -22,6 +22,7 @@ android {
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_11.toString()
     }
+
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
@@ -43,8 +44,22 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    buildFeatures {
+        buildConfig = true
+    }
 }
 
 flutter {
     source = "../.."
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    val core_version = "1.16.0"
+    implementation("androidx.core:core-ktx:$core_version")
 }

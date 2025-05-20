@@ -1,7 +1,6 @@
 import 'dart:convert';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../componentes/action_button.dart';
@@ -47,6 +46,7 @@ class _BluetoothScreenState extends State<BluetoothScreen> {
     await Permission.bluetoothScan.request();
     await Permission.bluetoothConnect.request();
   }
+
 
   @override
   void initState() {
