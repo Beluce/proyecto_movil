@@ -50,6 +50,8 @@ dependencies:
   flutter_bluetooth_serial: ^0.4.0
   #flutter_reactive_ble: ^5.4.0
   #flutter_blue_classic: ^0.0.4
+  flutter_colorpicker: ^1.0.3
+  image: ^4.0.17
 
 dev_dependencies:
   flutter_test:
@@ -77,6 +79,7 @@ flutter:
   assets:
     - assets/gif/
     - assets/img/
+    - assets/img/botones_casco/
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

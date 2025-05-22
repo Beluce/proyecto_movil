@@ -1,6 +1,6 @@
 # proyecto
 
-A new Flutter project.
+Proyecto Smart Vida
 
 ## Getting Started
 

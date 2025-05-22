@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -30,8 +32,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
     isPasswordUser = user.providerData.any((p) => p.providerId == 'password');
   }
 
+  void showLoading() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => Center(
+            child: Container(
+              width: 180,
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.asset(
+                      'assets/gif/loadingDaftPunk.gif',
+                      width: 100,
+                      height: 100,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    "Guardando cambios...",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontFamily: GoogleFonts.orbitron().fontFamily,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+    );
+  }
+
+  void exitCircle() {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+  }
+
   void updateProfile() async {
     try {
+      showLoading();
       String? uploadedUrl;
 
       if (_image != null) {
@@ -58,13 +106,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Perfil actualizado exitosamente')),
       );
-
+      exitCircle();
       Navigator.pop(context);
     } catch (e) {
       print(e);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al actualizar perfil')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error al actualizar perfil')));
     }
   }
 
@@ -93,10 +141,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         title: const Text(
           'Perfil',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
         ),
         centerTitle: true,
       ),
@@ -115,11 +160,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           CircleAvatar(
                             radius: 64,
-                            backgroundImage: _image != null
-                                ? MemoryImage(_image!)
-                                : NetworkImage(photoURL ??
-                                'https://www.gravatar.com/avatar/placeholder.png?d=mp')
-                            as ImageProvider,
+                            backgroundImage:
+                                _image != null
+                                    ? MemoryImage(_image!)
+                                    : NetworkImage(
+                                          photoURL ??
+                                              'https://www.gravatar.com/avatar/placeholder.png?d=mp',
+                                        )
+                                        as ImageProvider,
                           ),
                           if (isPasswordUser)
                             Positioned(
@@ -131,7 +179,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     shape: BoxShape.circle,
                                     color: Colors.blueAccent,
                                   ),
-                                  child: const Icon(Icons.edit, color: Colors.white, size: 20),
+                                  child: const Icon(
+                                    Icons.edit,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
                                 ),
                               ),
                             ),
@@ -141,9 +193,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 30),
                     Card(
                       elevation: 2,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 25,
+                        ),
                         child: Column(
                           children: [
                             TextField(
@@ -173,7 +230,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   );
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Correo de recuperación enviado'),
+                                      content: Text(
+                                        'Correo de recuperación enviado',
+                                      ),
                                     ),
                                   );
                                 },
@@ -195,7 +254,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ElevatedButton.icon(
                       onPressed: updateProfile,
                       icon: const Icon(Icons.save, size: 25),
-                      label: const Text('Guardar cambios', style: TextStyle(fontSize: 18)),
+                      label: const Text(
+                        'Guardar cambios',
+                        style: TextStyle(fontSize: 18),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.lightGreen.shade100,
                         minimumSize: const Size.fromHeight(50),
@@ -209,7 +271,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             OutlinedButton.icon(
               onPressed: logOut,
               icon: const Icon(Icons.logout, size: 25),
-              label: const Text('Cerrar sesión', style: TextStyle(fontSize: 18)),
+              label: const Text(
+                'Cerrar sesión',
+                style: TextStyle(fontSize: 18),
+              ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.redAccent,
                 side: const BorderSide(color: Colors.redAccent),
@@ -221,5 +286,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
-
 }
